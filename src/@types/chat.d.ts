@@ -1,0 +1,10 @@
+export interface ChatAttributes {
+    id: string;
+    senderId: string;
+    receiverId: string;
+    message: string;
+    isRead: boolean;
+    createdAt?: Date;
+    updatedAt?: Date;
+  }
+  

@@ -1,0 +1,56 @@
+name: Deploy Backend Rosto-firme
+
+on:
+  push:
+    branches:
+      - prod
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Add SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Add Server to Known Hosts
+        env:
+          REMOTE_HOST: 93.127.212.213
+        run: |
+          ssh-keyscan -H 93.127.212.213 >> ~/.ssh/known_hosts
+
+      - name: Deploy para o servidor
+        env:
+          REMOTE_USER: root
+          REMOTE_HOST: 93.127.212.213
+          PM2_APP_NAME: backend-rosto-firme
+          REMOTE_BACKEND_PATH: /var/www/backend/app-rostofirme-be
+        run: |
+          ssh $REMOTE_USER@$REMOTE_HOST << 'EOF'
+            echo "Iniciando deploy..."
+            cd $REMOTE_BACKEND_PATH &&
+            echo "Diretório atual:" &&
+            ls -la &&
+            if [ ! -d ".git" ]; then
+              echo "Repositório Git não encontrado. Inicializando..." &&
+              git init
+            fi &&
+            git reset --hard HEAD &&
+            git clean -fd &&
+            echo "Status do repositório:" &&
+            git status &&
+            git fetch origin &&
+            git reset --hard origin/prod &&
+            npm install --production &&
+            npm run build &&
+            pm2 delete all &&
+            pm2 save &&
+            pm2 start "npm run start" --name $PM2_APP_NAME
+            echo "Deploy concluído!"
+          EOF
